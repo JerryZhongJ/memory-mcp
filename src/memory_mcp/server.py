@@ -36,17 +36,8 @@ async def memorize_memory_tool(content: str) -> str:
     Args:
         content: 要记住的内容。可以是一句话、一段文字甚至更长的文本。
     """
-    asyncio.create_task(_memorize_with_logging(content, _registry))
+    asyncio.create_task(memorize_memory(content, _registry))
     return "内容正在后台记忆中"
-
-
-async def _memorize_with_logging(content: str, registry: MemoryRegistry):
-    """带日志记录的后台记忆任务"""
-    try:
-        result = await memorize_memory(content, registry)
-        print(f"[记忆完成] {result}", file=sys.stderr)
-    except Exception as e:
-        print(f"[记忆失败] {e}", file=sys.stderr)
 
 
 def main():

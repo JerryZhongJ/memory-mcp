@@ -101,7 +101,7 @@ class CreateMemoryTool(Tool):
                     "keywords": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "用来标识记忆的一组关键词，每个关键词由小写字母组成",
+                        "description": "用来标识记忆的一组关键词，每个关键词由小写字母和数字组成，且至少包含一个字母。",
                     },
                     "content": {
                         "type": "string",
@@ -197,7 +197,7 @@ class ReassignMemoryTool(Tool):
                     "new_keywords": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "新的关键词组，每个关键词由小写字母组成",
+                        "description": "新的关键词组，每个关键词由小写字母和数字组成，且至少包含一个字母。",
                     },
                     "version": {
                         "type": "string",

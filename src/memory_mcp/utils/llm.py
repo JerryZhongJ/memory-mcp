@@ -4,36 +4,16 @@ import anthropic
 from anthropic import AsyncAnthropic
 from anthropic.types import MessageParam, ToolUnionParam
 
-from ..config import ANTHROPIC_API_KEY, DEFAULT_MODEL
+from ..config import DEFAULT_MODEL
+from .logger import logger
 
-client = AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
+client = AsyncAnthropic()
 
 
 class Tool:
     """工具基类
 
     子类需要重载 execute() 方法来实现具体的工具逻辑。
-
-    Example:
-        class SearchTool(Tool):
-            def __init__(self, registry):
-                super().__init__(
-                    name="search_similar",
-                    description="搜索相似的 memory 文件",
-                    input_schema={
-                        "type": "object",
-                        "properties": {
-                            "keywords": {"type": "array", "items": {"type": "string"}}
-                        },
-                        "required": ["keywords"]
-                    }
-                )
-                self.registry = registry
-
-            def execute(self, tool_input: dict) -> str:
-                keywords = tool_input.get("keywords", [])
-                results = self.registry.list(keywords)
-                return f"找到 {len(results)} 个相似文件"
     """
 
     def __init__(self, name: str, description: str, input_schema: dict):
@@ -93,6 +73,21 @@ def extract_tool_calls(response: anthropic.types.Message) -> list[dict]:
     return tool_calls
 
 
+def _log_conversation_history(messages: list[MessageParam], reason: str) -> None:
+    """打印完整的对话历史（DEBUG 级别）
+
+    Args:
+        messages: 消息历史列表
+        reason: 打印原因（如 'completed' 或 'timeout'）
+    """
+    logger.debug(f"[Agent] {reason.capitalize()} - Full conversation ({len(messages)} messages):")
+    for i, msg in enumerate(messages):
+        role = msg["role"]
+        content = msg["content"]
+        logger.debug(f"  Message [{i}] ({role}):")
+        logger.debug(f"    {content}")
+
+
 async def continue_conversation(
     system_prompt: str,
     messages: list[MessageParam],
@@ -112,13 +107,23 @@ async def continue_conversation(
     Returns:
         LLM 响应对象
     """
-    return await client.messages.create(
-        model=model,
-        max_tokens=max_tokens,
-        system=system_prompt,
-        messages=messages,
-        tools=tools,
-    )
+    try:
+        return await client.messages.create(
+            model=model,
+            max_tokens=max_tokens,
+            system=system_prompt,
+            messages=messages,
+            tools=tools,
+        )
+    except anthropic.RateLimitError as e:
+        logger.warning(f"[LLM] Rate limited: {e}")
+        raise
+    except anthropic.APIConnectionError as e:
+        logger.error(f"[LLM] Connection error: {e}")
+        raise
+    except anthropic.APIError as e:
+        logger.error(f"[LLM] API error: {e}")
+        raise
 
 
 async def small_agent(
@@ -155,13 +160,17 @@ async def small_agent(
 
     # 4. 构建 system prompt
     final_tools_desc = "\n".join(f"- {f['name']}: {f['description']}" for f in final)  # type: ignore
+    tools_desc = chr(10).join(f"- {tool.name}: {tool.description}" for tool in tools) if tools else "无"
+
     system_prompt = f"""你是一个智能助手，可以使用提供的工具来完成任务。
+
+你最多有 {maxIter} 轮机会来完成任务。每轮你可以调用工具，然后获得结果。
 
 当你准备好给出最终答案时，调用以下工具之一：
 {final_tools_desc}
 
 可用工具：
-{chr(10).join(f"- {tool.name}: {tool.description}" for tool in tools)}
+{tools_desc}
 """
 
     # 5. 初始化消息历史（initial_prompt 作为第一个 user 消息）
@@ -193,6 +202,7 @@ async def small_agent(
         for call in tool_calls:
             if call["name"] in final_names:
                 # 找到 final 工具，立即返回工具名和参数
+                _log_conversation_history(messages, f"completed (final tool: {call['name']})")
                 return (call["name"], call["input"])
 
         # 6.6 执行非 final 工具（异步）
@@ -222,4 +232,5 @@ async def small_agent(
         messages.append({"role": "user", "content": tool_results})
 
     # 7. 达到最大迭代次数，返回 None
+    _log_conversation_history(messages, "timeout")
     return None

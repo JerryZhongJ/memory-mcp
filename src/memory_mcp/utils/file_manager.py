@@ -2,10 +2,8 @@
 
 from pathlib import Path
 
-from ..config import MEMORIES_DIR_NAME
 
-
-def ensure_memories_dir(project_root: Path) -> Path:
+def ensure_dir(dir: Path) -> Path:
     """确保 .memories 目录存在
 
     Args:
@@ -14,12 +12,12 @@ def ensure_memories_dir(project_root: Path) -> Path:
     Returns:
         .memories 目录的路径
     """
-    memories_dir = project_root / MEMORIES_DIR_NAME
-    memories_dir.mkdir(exist_ok=True)
-    return memories_dir
+
+    dir.mkdir(exist_ok=True)
+    return dir
 
 
-def list_memory_files(project_root: Path) -> list[frozenset[str]]:
+def list_markdown_names(project_root: Path) -> list[str]:
     """列出所有 memory 文件
 
     Args:
@@ -28,31 +26,9 @@ def list_memory_files(project_root: Path) -> list[frozenset[str]]:
     Returns:
         字典，键为 keywords set（frozenset），值为文件路径
     """
-    memories_dir = ensure_memories_dir(project_root)
-    result = []
+    memories_dir = ensure_dir(project_root)
 
-    for file_path in memories_dir.glob("*.md"):
-        keywords = extract_keywords_from_filename(file_path.name)
-        result.append(keywords)
-
-    return result
-
-
-def extract_keywords_from_filename(filename: str) -> frozenset:
-    """从文件名提取 keywords set
-
-    Args:
-        filename: 文件名（例如 "api-design-patterns.md"）
-
-    Returns:
-        keywords 的 frozenset（无顺序）
-    """
-    # 去除 .md 后缀
-    name = filename.removesuffix(".md")
-    # 按连字符分割
-    keywords = name.split("-")
-    # 返回 frozenset（无顺序，可哈希）
-    return frozenset(keywords)
+    return [file_path.stem for file_path in memories_dir.glob("*.md")]
 
 
 def read_file(file_path: Path) -> str:

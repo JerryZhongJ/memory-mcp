@@ -4,32 +4,36 @@ from anthropic.types import ToolUnionParam
 
 from ..core.memory_registry import MemoryRegistry
 from ..utils.llm import small_agent
+from ..utils.logger import logger
 from .memory_tools import ListMemoriesTool, ReadMemoryTool
 
 
 async def recall_memory(interest: str, registry: MemoryRegistry) -> str:
     """使用 small_agent 实现的回忆流程"""
-    list_tool = ListMemoriesTool(registry)
-    read_tool = ReadMemoryTool(registry)
+    logger.info(f"[Recall] Query: {interest}")
 
-    final_tools: list[ToolUnionParam] = [
-        {
-            "name": "submit",
-            "description": "提交回忆报告",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "report": {
-                        "type": "string",
-                        "description": "综合回忆报告（Markdown 格式）",
-                    }
+    try:
+        list_tool = ListMemoriesTool(registry)
+        read_tool = ReadMemoryTool(registry)
+
+        final_tools: list[ToolUnionParam] = [
+            {
+                "name": "submit",
+                "description": "提交回忆报告",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "report": {
+                            "type": "string",
+                            "description": "综合回忆报告（Markdown 格式）",
+                        }
+                    },
+                    "required": ["report"],
                 },
-                "required": ["report"],
-            },
-        }
-    ]
+            }
+        ]
 
-    initial_prompt = f"""尝试从记忆库回忆与这个有关的信息：{interest}
+        initial_prompt = f"""尝试从记忆库回忆与这个有关的信息：{interest}
 
 请按以下指导处理：
 1. 使用 list_memories 工具搜索相关记忆
@@ -42,18 +46,25 @@ async def recall_memory(interest: str, registry: MemoryRegistry) -> str:
 - 报告除了直接回应用户的兴趣点，还应该包含补充详细的背景信息
 - 如果没有相关内容，请报告'没有相关记忆'"""
 
-    result = await small_agent(
-        initial_prompt=initial_prompt,
-        tools=[list_tool, read_tool],
-        final=final_tools,
-        maxIter=10,
-    )
+        result = await small_agent(
+            initial_prompt=initial_prompt,
+            tools=[list_tool, read_tool],
+            final=final_tools,
+            maxIter=10,
+        )
 
-    if result is None:
-        return "查询超时，未能生成报告"
+        if result is None:
+            logger.warning(f"[Recall] Timeout for query: {interest}")
+            return "查询超时，未能生成报告"
 
-    tool_name, tool_input = result
-    if tool_name == "submit":
-        return tool_input.get("report", "")
+        tool_name, tool_input = result
+        if tool_name == "submit":
+            logger.info(f"[Recall] Completed for: {interest}")
+            return tool_input.get("report", "")
 
-    return "未知错误"
+        logger.warning(f"[Recall] Unknown result for query: {interest}")
+        return "未知错误"
+
+    except Exception as e:
+        logger.error(f"[Recall] Failed: {e}", exc_info=True)
+        raise

@@ -4,6 +4,7 @@ from anthropic.types import ToolUnionParam
 
 from ..core.memory_registry import MemoryRegistry
 from ..utils.llm import small_agent
+from ..utils.logger import logger
 from .memory_tools import (
     CreateMemoryTool,
     ListMemoriesTool,
@@ -12,31 +13,34 @@ from .memory_tools import (
 )
 
 
-async def memorize_memory(content: str, registry: MemoryRegistry) -> str:
+async def memorize_memory(content: str, registry: MemoryRegistry):
     """使用 small_agent 实现的保存流程"""
-    list_tool = ListMemoriesTool(registry)
-    read_tool = ReadMemoryTool(registry)
-    create_tool = CreateMemoryTool(registry)
-    update_tool = UpdateMemoryTool(registry)
+    logger.info(f"[Memorize] Content length: {len(content)} chars")
 
-    final_tools: list[ToolUnionParam] = [
-        {
-            "name": "done",
-            "description": "完成所有保存操作",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "summary": {
-                        "type": "string",
-                        "description": "操作摘要（已创建/更新了哪些记忆）",
-                    }
+    try:
+        list_tool = ListMemoriesTool(registry)
+        read_tool = ReadMemoryTool(registry)
+        create_tool = CreateMemoryTool(registry)
+        update_tool = UpdateMemoryTool(registry)
+
+        final_tools: list[ToolUnionParam] = [
+            {
+                "name": "done",
+                "description": "完成所有保存操作",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "summary": {
+                            "type": "string",
+                            "description": "操作摘要（已创建/更新了哪些记忆）",
+                        }
+                    },
+                    "required": ["summary"],
                 },
-                "required": ["summary"],
-            },
-        }
-    ]
+            }
+        ]
 
-    initial_prompt = f"""把以下内容保存到记忆库中：
+        initial_prompt = f"""把以下内容保存到记忆库中：
 
 {content}
 
@@ -49,35 +53,34 @@ async def memorize_memory(content: str, registry: MemoryRegistry) -> str:
    - 调用 create_memory 创建新的记忆
 4. 完成所有操作后，调用 done
 
-**重要约束**：
+**重要原则**：
 - 每个记忆 ≤ 1000 字
-- Keywords：小写字母，准确反映主题
-
-
-**更新时**：
-- 融合新旧内容，避免重复
-- 保持内容完整性和连贯性
-
-**创建时**：
-- 内容应独立、完整
-- Keywords 应准确、简洁
+- 关键词组：每个关键词由小写字母和数字组成，且至少包含一个字母。关键词组准确描述内容。
+- 避免冗余代码和引用段落，可以替代为它们的访问方式（如源代码位置、URL等）。
 
 **工具会返回成功或失败消息**，请根据反馈调整"""
 
-    result = await small_agent(
-        initial_prompt=initial_prompt,
-        tools=[list_tool, read_tool, create_tool, update_tool],
-        final=final_tools,
-        maxIter=10,
-    )
+        result = await small_agent(
+            initial_prompt=initial_prompt,
+            tools=[list_tool, read_tool, create_tool, update_tool],
+            final=final_tools,
+            maxIter=20,
+        )
 
-    if result is None:
-        return "保存超时，未能完成操作"
+        if result is None:
+            logger.warning(f"[Memorize] Timeout, content length: {len(content)}")
+            return
 
-    tool_name, tool_input = result
+        tool_name, tool_input = result
 
-    if tool_name == "done":
-        summary = tool_input.get("summary", "")
-        return f"✓ 操作完成\n\n{summary}"
+        if tool_name == "done":
+            summary = tool_input.get("summary", "")
+            logger.info(f"[Memorize] Completed")
+            return
 
-    return "未知错误"
+        logger.warning(f"[Memorize] Unknown result, content length: {len(content)}")
+        return
+
+    except Exception as e:
+        logger.error(f"[Memorize] Failed: {e}", exc_info=True)
+        raise

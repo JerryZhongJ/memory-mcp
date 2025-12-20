@@ -8,13 +8,16 @@ from typing import NamedTuple
 
 from rusty_results.prelude import Err, Ok, Result
 
+from memory_mcp.config import MEMORIES_DIR_NAME
+
 from ..utils import file_manager
+from ..utils.logger import logger
 from . import matcher
 from .validators import (
     FailureHint,
     validate_content_size,
     validate_keywords,
-    validate_relevance,
+    validate_semantics,
 )
 
 
@@ -53,7 +56,7 @@ class Memory:
             case Err(e):
                 return Err(e)
 
-        match await validate_relevance(new_content, self._keywords):
+        match await validate_semantics(new_content, self._keywords):
             case Err(e):
                 return Err(e)
 
@@ -100,7 +103,7 @@ class Memory:
     def _get_file_path(self) -> Path:
         sorted_keywords = sorted(self._keywords)
         filename = "-".join(sorted_keywords) + ".md"
-        return self._project_root / filename
+        return self._project_root / MEMORIES_DIR_NAME / filename
 
     def _load_from_file(self) -> None:
         file_path = self._get_file_path()
@@ -134,7 +137,7 @@ class Memory:
             case Err(e):
                 return Err(e)
 
-        match await validate_relevance(content, memory.keywords):
+        match await validate_semantics(content, memory.keywords):
             case Err(e):
                 return Err(e)
 
@@ -167,6 +170,22 @@ class MemorySnapShot(NamedTuple):
     version: str
 
 
+def extract_keywords_from_filename(name: str) -> frozenset:
+    """从文件名提取 keywords set
+
+    Args:
+        filename: 文件名（例如 "api-design-patterns"）
+
+    Returns:
+        keywords 的 frozenset（无顺序）
+    """
+
+    # 按连字符分割
+    keywords = name.split("-")
+    # 返回 frozenset（无顺序，可哈希）
+    return frozenset(keywords)
+
+
 class MemoryRegistry:
     """记忆注册表 - 数据访问层
 
@@ -185,8 +204,9 @@ class MemoryRegistry:
 
     def _load_metadata(self) -> None:
         """从文件系统加载元数据并创建 Memory 对象（延迟加载）"""
-        file_keywords = file_manager.list_memory_files(self._project_root)
-        for keywords in file_keywords:
+        names = file_manager.list_markdown_names(self._project_root / MEMORIES_DIR_NAME)
+        for name in names:
+            keywords = extract_keywords_from_filename(name)
             match Memory.create_lazy(keywords, self._project_root):
                 case Ok(memory):
                     self._memories[keywords] = memory
@@ -211,16 +231,20 @@ class MemoryRegistry:
         """读取 memory 的 content 和 version"""
         match self._find_memory(keywords):
             case Err(e):
+                logger.warning(f"[Read] Not found: {sorted(keywords)}")
                 return Err(e)
             case Ok((key, memory)):
                 pass
 
+        logger.info(f"[Read] Success: {sorted(keywords)}")
         return Ok(memory.snapshot())
 
     def list(self, keywords: Iterable[str] | None = None) -> list[frozenset[str]]:
         """列出所有或匹配指定关键词的 memory（按匹配度排序）"""
         if keywords is None:
-            return list(self._memories.keys())
+            result = list(self._memories.keys())
+            logger.info(f"[List] All memories: {len(result)} found")
+            return result
 
         query_keywords = list(keywords)
         scored_keywords = []
@@ -231,7 +255,9 @@ class MemoryRegistry:
                 scored_keywords.append((file_keywords, score))
 
         scored_keywords.sort(key=lambda x: x[1], reverse=True)
-        return [kw for kw, _ in scored_keywords]
+        result = [kw for kw, _ in scored_keywords]
+        logger.info(f"[List] Query: {sorted(query_keywords)}, matched: {len(result)}")
+        return result
 
     async def create(
         self,
@@ -242,6 +268,7 @@ class MemoryRegistry:
 
         match await Memory.create(keywords, content, self._project_root):
             case Err(e):
+                logger.warning(f"[Create] Validation failed: {e.message}")
                 return Err(e)
             case Ok(memory):
                 pass
@@ -249,6 +276,7 @@ class MemoryRegistry:
         keywords = memory.keywords
         async with self._registry_lock:
             if keywords in self._memories:
+                logger.warning(f"[Create] Keywords already exist: {sorted(keywords)}")
                 return Err(
                     FailureHint(
                         "Memory 已存在",
@@ -256,6 +284,9 @@ class MemoryRegistry:
                     )
                 )
             self._memories[keywords] = memory
+            logger.info(
+                f"[Create] Success: {sorted(keywords)}, version={memory.version}"
+            )
 
             return Ok(memory.snapshot())
 
@@ -269,6 +300,7 @@ class MemoryRegistry:
         """部分更新 memory（old_content 必须在文件中唯一匹配，返回新 version）"""
         match self._find_memory(keywords):
             case Err(e):
+                logger.warning(f"[Update] Not found: {sorted(keywords)}")
                 return Err(e)
             case Ok((key, memory)):
                 pass
@@ -276,11 +308,16 @@ class MemoryRegistry:
         async with memory.lock:
             match memory.check_version(version):
                 case Err(e):
+                    logger.warning(
+                        f"[Update] Version mismatch: {sorted(keywords)}, "
+                        f"expected={version}, actual={memory.version}"
+                    )
                     return Err(e)
 
             current_content = memory.content
             count = current_content.count(old_content)
             if count == 0:
+                logger.warning(f"[Update] Content not found: {sorted(keywords)}")
                 return Err(
                     FailureHint(
                         "找不到要替换的内容",
@@ -288,6 +325,9 @@ class MemoryRegistry:
                     )
                 )
             elif count > 1:
+                logger.warning(
+                    f"[Update] Content not unique: {sorted(keywords)}, occurrences={count}"
+                )
                 return Err(
                     FailureHint(
                         f"要替换的内容不唯一，在文件中出现 {count} 次",
@@ -299,8 +339,12 @@ class MemoryRegistry:
 
             match await memory.set_content(updated_content):
                 case Err(e):
+                    logger.warning(f"[Update] Content validation failed: {e.message}")
                     return Err(e)
 
+            logger.info(
+                f"[Update] Success: {sorted(keywords)}, version {version} -> {memory.version}"
+            )
             return Ok(memory.snapshot())
 
     async def reassign(
@@ -309,6 +353,7 @@ class MemoryRegistry:
         """重命名 memory 的 keywords（返回新 version）"""
         match self._find_memory(keywords):
             case Err(e):
+                logger.warning(f"[Reassign] Not found: {sorted(keywords)}")
                 return Err(e)
             case Ok((old_key, old_memory)):
                 pass
@@ -316,18 +361,28 @@ class MemoryRegistry:
         async with old_memory.lock:
             match old_memory.check_version(version):
                 case Err(e):
+                    logger.warning(
+                        f"[Reassign] Version mismatch: {sorted(keywords)}, "
+                        f"expected={version}, actual={old_memory.version}"
+                    )
                     return Err(e)
 
             match await Memory.create(
                 new_keywords, old_memory.content, self._project_root
             ):
                 case Err(e):
+                    logger.warning(
+                        f"[Reassign] New keywords validation failed: {e.message}"
+                    )
                     return Err(e)
                 case Ok(new_memory):
                     pass
 
             async with self._registry_lock:
                 if new_memory.keywords in self._memories:
+                    logger.warning(
+                        f"[Reassign] New keywords conflict: {sorted(new_memory.keywords)}"
+                    )
                     return Err(
                         FailureHint(
                             "新 Keywords 对应的 Memory 已存在",
@@ -340,6 +395,10 @@ class MemoryRegistry:
 
             old_memory.delete_file()
 
+            logger.info(
+                f"[Reassign] Success: {sorted(keywords)} -> {sorted(new_memory.keywords)}, "
+                f"version {version} -> {new_memory.version}"
+            )
             return Ok(new_memory.snapshot())
 
     def delete(
@@ -348,14 +407,18 @@ class MemoryRegistry:
         """删除 memory"""
         match self._find_memory(keywords):
             case Err(e):
+                logger.warning(f"[Delete] Not found: {sorted(keywords)}")
                 return Err(e)
             case Ok((key, memory)):
                 pass
+
         match memory.check_version(version):
             case Err(e):
+                logger.warning(f"[Delete] Version mismatch: {sorted(keywords)}")
                 return Err(e)
 
         memory.delete_file()
         del self._memories[key]
 
+        logger.info(f"[Delete] Success: {sorted(keywords)}")
         return Ok(None)
