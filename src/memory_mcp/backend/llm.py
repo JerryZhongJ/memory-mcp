@@ -147,18 +147,14 @@ async def small_agent(
     Returns:
         成功时返回 (tool_name, tool_input) 元组，超时返回 None
     """
-    # 1. 构建工具名称到对象的映射（仅包含可执行工具）
     tool_map = {tool.name: tool for tool in tools}
 
-    # 2. 转换为 Anthropic API 格式（包含所有 final 工具）
     anthropic_tools: list[ToolUnionParam] = [
         tool.to_anthropic_tool() for tool in tools
     ] + final
 
-    # 3. 提取所有 final 工具名称（用于快速检测）
     final_names = {f["name"] for f in final}
 
-    # 4. 构建 system prompt
     final_tools_desc = "\n".join(f"- {f['name']}: {f['description']}" for f in final)  # type: ignore
     tools_desc = chr(10).join(f"- {tool.name}: {tool.description}" for tool in tools) if tools else "无"
 
@@ -173,12 +169,9 @@ async def small_agent(
 {tools_desc}
 """
 
-    # 5. 初始化消息历史（initial_prompt 作为第一个 user 消息）
     messages: list[MessageParam] = [{"role": "user", "content": initial_prompt}]
 
-    # 6. 迭代循环
     for iteration in range(maxIter):
-        # 6.1 调用 LLM（异步）
         response = await continue_conversation(
             system_prompt=system_prompt,
             messages=messages,
@@ -187,50 +180,37 @@ async def small_agent(
             max_tokens=max_tokens,
         )
 
-        # 6.2 更新消息历史
         messages.append({"role": "assistant", "content": response.content})
 
-        # 6.3 提取工具调用
         tool_calls = extract_tool_calls(response)
 
-        # 6.4 检查是否有工具调用
         if not tool_calls:
-            # LLM 没有调用工具，继续下一轮
             continue
 
-        # 6.5 检查是否调用了任何 final 工具
         for call in tool_calls:
             if call["name"] in final_names:
-                # 找到 final 工具，立即返回工具名和参数
                 _log_conversation_history(messages, f"completed (final tool: {call['name']})")
                 return (call["name"], call["input"])
 
-        # 6.6 执行非 final 工具（异步）
         tool_results = []
         for call in tool_calls:
             tool_name = call["name"]
             tool_input = call["input"]
 
-            # 获取工具对象（final 工具不在 tool_map 中，但已经在上面处理过了）
             tool = tool_map.get(tool_name)
             if tool is None:
-                # 工具不存在（理论上不应该发生，因为 LLM 只能调用我们提供的工具）
                 result = f"错误：工具 '{tool_name}' 不存在"
             else:
-                # 执行工具（异步）
                 try:
                     result = await tool.execute(tool_input)
                 except Exception as e:
                     result = f"工具执行失败: {str(e)}"
 
-            # 构建 tool_result 消息
             tool_results.append(
                 {"type": "tool_result", "tool_use_id": call["id"], "content": result}
             )
 
-        # 6.7 添加 tool_result 到消息历史（作为 user 消息，满足 API 要求）
         messages.append({"role": "user", "content": tool_results})
 
-    # 7. 达到最大迭代次数，返回 None
     _log_conversation_history(messages, "timeout")
     return None
