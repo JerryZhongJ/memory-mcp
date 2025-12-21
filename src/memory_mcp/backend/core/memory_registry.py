@@ -8,10 +8,9 @@ from typing import NamedTuple
 
 from rusty_results.prelude import Err, Ok, Result
 
-from memory_mcp.config import MEMORIES_DIR_NAME
-
-from ..utils import file_manager
-from ..utils.logger import logger
+from ... import file_manager
+from ..config import MEMORIES_DIR_NAME
+from ..logger import logger
 from . import matcher
 from .validators import (
     FailureHint,

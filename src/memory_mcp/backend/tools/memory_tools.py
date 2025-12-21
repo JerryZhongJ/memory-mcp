@@ -3,7 +3,7 @@
 from rusty_results.prelude import Err, Ok
 
 from ..core.memory_registry import MemoryRegistry
-from ..utils.llm import Tool
+from ..llm import Tool
 
 
 class ListMemoriesTool(Tool):

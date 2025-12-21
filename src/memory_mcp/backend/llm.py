@@ -4,7 +4,7 @@ import anthropic
 from anthropic import AsyncAnthropic
 from anthropic.types import MessageParam, ToolUnionParam
 
-from ..config import DEFAULT_MODEL
+from .config import DEFAULT_MODEL
 from .logger import logger
 
 client = AsyncAnthropic()

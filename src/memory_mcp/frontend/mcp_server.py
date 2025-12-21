@@ -1,22 +1,32 @@
 """MCP 服务器入口"""
 
 import argparse
-import asyncio
 import os
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 
-from .core.memory_registry import MemoryRegistry
-from .tools.memorize import memorize_memory
-from .tools.recall import recall_memory
+from .client import FrontendClient
 
 load_dotenv()
 
-mcp = FastMCP("memory-mcp")
-_registry: MemoryRegistry = None  # type: ignore
+_client: FrontendClient = None  # type: ignore
+
+
+@asynccontextmanager
+async def lifespan(app):
+    """服务器生命周期管理：启动时初始化后端"""
+    # 启动时：积极启动后端
+    await _client.start()
+    yield
+    # 关闭时：清理资源
+    await _client.close()
+
+
+mcp = FastMCP("memory-mcp", lifespan=lifespan)
 
 
 @mcp.tool()
@@ -24,9 +34,9 @@ async def recall_memory_tool(interest: str) -> str:
     """从项目记忆中回忆相关信息
 
     Args:
-        interest: 想要回忆的任何东西，可以是一句陈述、一个问题甚至是关键词
+        interest: 想要回忆的任何东西，可以是一句陈述、一个问题或者一段话。
     """
-    return await recall_memory(interest, _registry)
+    return await _client.recall(interest)
 
 
 @mcp.tool()
@@ -36,13 +46,27 @@ async def memorize_memory_tool(content: str) -> str:
     Args:
         content: 要记住的内容。可以是一句话、一段文字甚至更长的文本。
     """
-    asyncio.create_task(memorize_memory(content, _registry))
+    await _client.memorize(content)
     return "内容正在后台记忆中"
+
+
+@mcp.tool()
+async def set_backend_log_level_tool(level: str) -> str:
+    """设置后端日志级别（用于调试）
+
+    Args:
+        level: 日志级别，可选值：DEBUG, INFO, WARNING, ERROR, CRITICAL, DISABLE
+    """
+    try:
+        message = await _client.set_log_level(level)
+        return message
+    except Exception as e:
+        return f"设置日志级别失败: {str(e)}"
 
 
 def main():
     """MCP 服务器入口函数"""
-    parser = argparse.ArgumentParser(description="Memory MCP Server")
+    parser = argparse.ArgumentParser(description="Memory MCP Server (Frontend)")
     parser.add_argument(
         "--project",
         type=Path,
@@ -62,8 +86,8 @@ def main():
         )
         sys.exit(1)
 
-    global _registry
-    _registry = MemoryRegistry(args.project)
+    global _client
+    _client = FrontendClient(args.project)
 
     mcp.run(transport="stdio")
 

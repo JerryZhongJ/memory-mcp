@@ -2,7 +2,7 @@
 
 import pytest
 
-from memory_mcp.core.memory_registry import MemoryRegistry
+from memory_mcp.backend.core.memory_registry import MemoryRegistry
 
 
 class TestDeterministicID:

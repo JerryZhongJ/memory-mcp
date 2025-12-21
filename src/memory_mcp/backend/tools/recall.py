@@ -3,8 +3,8 @@
 from anthropic.types import ToolUnionParam
 
 from ..core.memory_registry import MemoryRegistry
-from ..utils.llm import small_agent
-from ..utils.logger import logger
+from ..llm import small_agent
+from ..logger import logger
 from .memory_tools import ListMemoriesTool, ReadMemoryTool
 
 

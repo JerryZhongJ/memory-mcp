@@ -3,8 +3,8 @@
 from anthropic.types import ToolUnionParam
 
 from ..core.memory_registry import MemoryRegistry
-from ..utils.llm import small_agent
-from ..utils.logger import logger
+from ..llm import small_agent
+from ..logger import logger
 from .memory_tools import (
     CreateMemoryTool,
     ListMemoriesTool,
@@ -56,7 +56,8 @@ async def memorize_memory(content: str, registry: MemoryRegistry):
 **重要原则**：
 - 每个记忆 ≤ 1000 字
 - 关键词组：每个关键词由小写字母和数字组成，且至少包含一个字母。关键词组准确描述内容。
-- 避免冗余代码和引用段落，可以替代为它们的访问方式（如源代码位置、URL等）。
+- 细节很重要：请不要丢失任何细节，除了下面提到的冗余代码和引用段落。
+- 避免冗余代码和引用段落：如果已知代码和引用段落的获取方式（如源代码位置、URL等），请只保留获取方式即可。
 
 **工具会返回成功或失败消息**，请根据反馈调整"""
 

@@ -7,9 +7,9 @@ from typing import Iterable
 from anthropic.types import ToolUnionParam
 from rusty_results.prelude import Err, Ok, Result
 
+from .. import llm
 from ..config import MAX_FILE_SIZE
-from ..utils import llm
-from ..utils.logger import logger
+from ..logger import logger
 
 
 @dataclass(frozen=True)
@@ -102,12 +102,12 @@ async def validate_semantics(
 
 检查两个方面：
 
-1. **相关性**：内容是否与关键词组高度相关，关键词组能否准确概括记忆内容
+1. **相关性**：内容是否与关键词组高度相关，关键词组能否完整且准确概括记忆内容。
 
-2. **避免冗余**：检查是否存在可以省略的冗余内容
-   - 如果某个代码片段或引用段落**已经提供了访问方式**（如源代码位置、URL、文献引用等），那么该片段/段落本身就是冗余的，应该只保留访问方式
-   - 简短的代码示例（1-3行）或关键引用可以保留，但大段代码/长篇引用配上访问方式时，就应该删除内容只留访问方式
-   - 注意：不是"有内容就必须提供位置"，而是"既有完整内容又有访问方式时，完整内容是多余的"
+2. **避免冗余**：检查是否存在可以省略的冗余代码片段或引用段落。
+   - 如果某个代码片段或引用段落**已经提供了获取方式**（如源代码位置、URL、文献引用等），那么该代码/段落本身就是冗余的。
+   - 简短的代码示例（1-3行）或关键引用可以保留，但大段代码/长篇引用配上对应的获取方式时，就应该只留获取方式
+
 
 关键词组：{keywords_str}
 
@@ -141,7 +141,7 @@ async def validate_semantics(
         return Err(
             FailureHint(
                 f"内容不符合要求: {reason}",
-                suggestion="如果是相关性问题，可以重命名关键词组或者将不相关内容拆分出来；如果是冗余代码和引用段落，可以将其替换为源代码位置、URL或其他访问方式。",
+                suggestion="如果是相关性问题，可以重命名关键词组或者将不相关内容拆分出来；如果是冗余代码和引用段落，可以将其替换为源代码位置、URL或其他获取方式。",
             )
         )
 

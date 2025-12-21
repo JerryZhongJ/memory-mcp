@@ -1,4 +1,4 @@
-"""日志配置模块"""
+"""前端日志配置（MCP 标准：输出到 stderr）"""
 
 import logging
 import os
@@ -6,12 +6,10 @@ import sys
 
 
 def setup_logger():
-    """配置日志系统（使用 root logger）
+    """配置前端日志系统
 
     - 输出到 stderr（MCP 标准）
     - 通过环境变量 LOG_LEVEL 控制级别（默认 INFO）
-    - 格式：时间戳 | 级别 | 模块 | 消息
-    - 捕获所有日志（包括第三方库）
     """
     root_logger = logging.getLogger()
 
@@ -19,15 +17,12 @@ def setup_logger():
     if root_logger.handlers:
         return root_logger
 
-    # 从环境变量获取日志级别，默认 INFO
     level = os.getenv("LOG_LEVEL", "INFO").upper()
     root_logger.setLevel(getattr(logging, level, logging.INFO))
 
-    # 输出到 stderr
     handler = logging.StreamHandler(sys.stderr)
     handler.setLevel(root_logger.level)
 
-    # 日志格式
     formatter = logging.Formatter(
         fmt="%(asctime)s | %(levelname)-7s | %(name)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
@@ -36,6 +31,8 @@ def setup_logger():
 
     root_logger.addHandler(handler)
 
+    return root_logger
+
 
 setup_logger()
-logger = logging.getLogger("memory-mcp")
+logger = logging.getLogger("memory-mcp-frontend")

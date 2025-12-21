@@ -1,10 +1,11 @@
 """测试 validators 模块的验证函数"""
+
 import pytest
-from src.memory_mcp.core.validators import (
-    validate_keywords,
-    validate_content_size,
+
+from memory_mcp.backend.core.validators import (
     count_words_mixed,
-    OperationResult
+    validate_content_size,
+    validate_keywords,
 )
 
 
