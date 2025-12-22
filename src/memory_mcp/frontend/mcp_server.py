@@ -87,7 +87,8 @@ def main():
         sys.exit(1)
 
     global _client
-    _client = FrontendClient(args.project)
+    project_root = args.project.resolve()
+    _client = FrontendClient(project_root)
 
     mcp.run(transport="stdio")
 
