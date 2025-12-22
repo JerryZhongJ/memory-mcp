@@ -12,14 +12,14 @@ class ListMemoriesTool(Tool):
     def __init__(self, registry: MemoryRegistry):
         super().__init__(
             name="list_memories",
-            description="列出与关键词匹配的记忆，每个记忆用一组关键词唯一标识",
+            description="列出与关键词匹配的记忆，每个记忆用一组关键词作为唯一标识。",
             input_schema={
                 "type": "object",
                 "properties": {
                     "keywords": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "关键词列表（可选，为空则列出所有）",
+                        "description": "用来查询的关键词列表（可选，为空则列出所有）",
                     }
                 },
                 "required": [],
@@ -55,14 +55,14 @@ class ReadMemoryTool(Tool):
     def __init__(self, registry: MemoryRegistry):
         super().__init__(
             name="read_memory",
-            description="读取指定记忆的内容（用一组关键词唯一标识）",
+            description="读取指定记忆的内容",
             input_schema={
                 "type": "object",
                 "properties": {
                     "keywords": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "用来标识记忆的一组关键词",
+                        "description": "用来标识记忆的一组关键词。关键词无顺序要求。",
                     }
                 },
                 "required": ["keywords"],
@@ -101,7 +101,7 @@ class CreateMemoryTool(Tool):
                     "keywords": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "用来标识记忆的一组关键词，每个关键词由小写字母和数字组成，且至少包含一个字母。",
+                        "description": "用来标识记忆的一组关键词，每个关键词由小写字母和数字组成，且至少包含一个字母。关键词无顺序要求。",
                     },
                     "content": {
                         "type": "string",
@@ -142,11 +142,11 @@ class UpdateMemoryTool(Tool):
                     "keywords": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "用来标识被更新记忆的关键词组",
+                        "description": "用来标识被更新记忆的关键词组，关键词无顺序要求。",
                     },
                     "old_content": {
                         "type": "string",
-                        "description": "被替换的内容（在该记忆中唯一出现）",
+                        "description": "在该记忆中唯一出现的要被替换的内容",
                     },
                     "new_content": {"type": "string", "description": "新的内容"},
                     "version": {
@@ -192,12 +192,12 @@ class ReassignMemoryTool(Tool):
                     "keywords": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "要重命名的记忆的关键词组",
+                        "description": "要重命名的记忆的关键词组，关键词无顺序要求。",
                     },
                     "new_keywords": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "新的关键词组，每个关键词由小写字母和数字组成，且至少包含一个字母。",
+                        "description": "新的关键词组，每个关键词由小写字母和数字组成，且至少包含一个字母。关键词无顺序要求。",
                     },
                     "version": {
                         "type": "string",

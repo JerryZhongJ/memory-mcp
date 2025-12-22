@@ -50,7 +50,7 @@ async def recall_memory(interest: str, registry: MemoryRegistry) -> str:
             initial_prompt=initial_prompt,
             tools=[list_tool, read_tool],
             final=final_tools,
-            maxIter=10,
+            maxIter=20,
         )
 
         if result is None:

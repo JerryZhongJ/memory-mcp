@@ -6,7 +6,7 @@ from pathlib import Path
 
 def get_cache_dir(project_root: Path) -> Path:
     # 使用 SHA256 确保跨进程一致性（不使用内置 hash()，因为有 hash randomization）
-    path_str = str(project_root.absolute())
+    path_str = str(project_root.resolve())
     path_hash = hashlib.sha256(path_str.encode()).hexdigest()[:16]
     return Path.home() / ".memory-mcp" / path_hash
 

@@ -65,7 +65,7 @@ async def memorize_memory(content: str, registry: MemoryRegistry):
             initial_prompt=initial_prompt,
             tools=[list_tool, read_tool, create_tool, update_tool],
             final=final_tools,
-            maxIter=20,
+            maxIter=50,
         )
 
         if result is None:
