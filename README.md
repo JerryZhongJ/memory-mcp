@@ -1,88 +1,64 @@
 # Memory MCP
 
-为 Claude Desktop 提供项目记忆管理的 MCP 服务器。
+为 Claude Code 提供项目记忆管理的 MCP 服务器。
 
-## 快速开始（推荐）
+## 快速开始
 
-### 方式一：直接从 GitHub 使用（无需下载）
-
-编辑 Claude Desktop 配置文件：
-- Linux/Mac: `~/.config/Claude/claude_desktop_config.json`
-- Windows: `%APPDATA%/Claude/claude_desktop_config.json`
-
-添加配置：
-
-```json
-{
-  "mcpServers": {
-    "memory": {
-      "command": "uvx",
-      "args": [
-        "--from",
-        "git+https://github.com/your-username/memory-mcp.git",
-        "memory-mcp",
-        "--project",
-        "/path/to/your/project"
-      ],
-      "env": {
-        "ANTHROPIC_API_KEY": "sk-ant-xxx"
-      }
-    }
-  }
-}
-```
-
-**优势**：
-- ✅ 无需手动下载和安装
-- ✅ 自动使用最新版本
-- ✅ 自动管理依赖
-
-### 方式二：本地安装
-
-#### 前置要求
+### 前置要求
 
 - Python >= 3.10
 - [uv](https://github.com/astral-sh/uv) 包管理器
-- Anthropic API Key
+- Anthropic API Key（从 [Anthropic Console](https://console.anthropic.com/) 获取）
 
-#### 安装步骤
+### 方式一：使用 CLI 命令添加（推荐）
+
+**从 GitHub 直接安装（无需下载）：**
 
 ```bash
-git clone https://github.com/your-username/memory-mcp.git
+# 添加到当前项目（本地作用域）
+claude mcp add memory \
+  --env ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
+  -- uvx --from git+https://github.com/JerryZhongJ/memory-mcp.git memory-mcp --project .
+```
+
+### 方式二：本地开发安装
+
+如果你需要修改源码或参与开发：
+
+```bash
+# 1. 克隆仓库
+git clone https://github.com/JerryZhongJ/memory-mcp.git
 cd memory-mcp
+
+# 2. 安装依赖
 uv sync
+
+# 3. 添加到 Claude Code
+claude mcp add memory \
+  --env ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
+  -- uv --directory /path/to/memory-mcp run memory-mcp --project .
 ```
 
-#### 配置 Claude Desktop
+### 验证安装
 
-```json
-{
-  "mcpServers": {
-    "memory": {
-      "command": "uv",
-      "args": [
-        "--directory",
-        "/path/to/memory-mcp",
-        "run",
-        "memory-mcp",
-        "--project",
-        "/path/to/your/project"
-      ],
-      "env": {
-        "ANTHROPIC_API_KEY": "sk-ant-xxx"
-      }
-    }
-  }
-}
+配置完成后，Claude Code 会自动加载服务器。你可以使用以下命令验证：
+
+```bash
+# 查看所有已配置的 MCP 服务器
+claude mcp list
+
+# 在 Claude Code 中使用 /mcp 命令查看服务器状态
 ```
 
-### 获取 API Key
+### 管理服务器
 
-在 [Anthropic Console](https://console.anthropic.com/) 获取 API Key。
+```bash
+# 移除服务器
+claude mcp remove memory
 
-### 重启 Claude Desktop
-
-配置完成后重启 Claude Desktop 加载服务器。
+# 查看服务器详情
+claude mcp get memory
+```
 
 ## 工作原理
 
