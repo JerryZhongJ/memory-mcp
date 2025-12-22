@@ -30,13 +30,16 @@ mcp = FastMCP("memory-mcp", lifespan=lifespan)
 
 
 @mcp.tool()
-async def recall_memory_tool(interest: str) -> str:
+async def recall_memory_tool(interest: str, deep: bool = False) -> str:
     """从项目记忆中回忆相关信息
 
     Args:
-        interest: 想要回忆的任何东西，可以是一句陈述、一个问题或者一段话。
+        interest: 想要回忆的任何东西，可以是一句陈述、一个问题。
+        deep: 是否使用深度模式（默认 False）
+              - False: 反应快速，报告简洁
+              - True: 耗时较长，但报告更全面
     """
-    return await _client.recall(interest)
+    return await _client.recall(interest, deep=deep)
 
 
 @mcp.tool()

@@ -18,7 +18,7 @@
 # 添加到当前项目（本地作用域）
 claude mcp add memory \
   --env ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
-  -- uvx --from git+https://github.com/JerryZhongJ/memory-mcp.git memory-mcp --project .
+  -- uvx --from git+https://github.com/JerryZhongJ/memory-mcp.git memory-mcp --project $(pwd)
 ```
 
 ### 方式二：本地开发安装
@@ -36,7 +36,7 @@ uv sync
 # 3. 添加到 Claude Code
 claude mcp add memory \
   --env ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
-  -- uv --directory /path/to/memory-mcp run memory-mcp --project .
+  -- uv --directory /path/to/memory-mcp run memory-mcp --project $(pwd)
 ```
 
 ### 验证安装

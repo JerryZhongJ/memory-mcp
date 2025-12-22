@@ -46,8 +46,9 @@ class BackendServer:
         try:
             data = await request.json()
             interest = data["interest"]
+            deep = data.get("deep", False)  # 新增：读取 deep 参数，默认 False
 
-            result = await recall_memory(interest, self.registry)
+            result = await recall_memory(interest, self.registry, deep=deep)
 
             return web.json_response({"status": "success", "result": result})
 

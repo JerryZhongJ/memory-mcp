@@ -42,6 +42,13 @@ class Tool:
         """
         raise NotImplementedError(f"Tool '{self.name}' 必须实现 execute() 方法")
 
+    def is_available(self) -> bool:
+        """检查工具是否可用（子类可重载以实现自定义逻辑）
+
+        默认实现：始终返回 True（无限制）
+        """
+        return True
+
     def to_anthropic_tool(self) -> ToolUnionParam:
         """转换为 Anthropic API 需要的工具格式
 
@@ -80,7 +87,9 @@ def _log_conversation_history(messages: list[MessageParam], reason: str) -> None
         messages: 消息历史列表
         reason: 打印原因（如 'completed' 或 'timeout'）
     """
-    logger.debug(f"[Agent] {reason.capitalize()} - Full conversation ({len(messages)} messages):")
+    logger.debug(
+        f"[Agent] {reason.capitalize()} - Full conversation ({len(messages)} messages):"
+    )
     for i, msg in enumerate(messages):
         role = msg["role"]
         content = msg["content"]
@@ -148,19 +157,34 @@ async def small_agent(
         成功时返回 (tool_name, tool_input) 元组，超时返回 None
     """
     tool_map = {tool.name: tool for tool in tools}
-
-    anthropic_tools: list[ToolUnionParam] = [
-        tool.to_anthropic_tool() for tool in tools
-    ] + final
-
     final_names = {f["name"] for f in final}
-
     final_tools_desc = "\n".join(f"- {f['name']}: {f['description']}" for f in final)  # type: ignore
-    tools_desc = chr(10).join(f"- {tool.name}: {tool.description}" for tool in tools) if tools else "无"
 
-    system_prompt = f"""你是一个智能助手，可以使用提供的工具来完成任务。
+    messages: list[MessageParam] = [{"role": "user", "content": initial_prompt}]
 
-你最多有 {maxIter} 轮机会来完成任务。每轮你可以调用工具，然后获得结果。
+    for iteration in range(maxIter):
+        # 动态过滤可用工具
+        available_tools = [tool for tool in tools if tool.is_available()]
+
+        # 最后一轮：只提供 final tools
+        if iteration == maxIter - 1:
+            anthropic_tools: list[ToolUnionParam] = final
+            tools_desc = "无"
+        else:
+            anthropic_tools: list[ToolUnionParam] = [
+                tool.to_anthropic_tool() for tool in available_tools
+            ] + final
+            tools_desc = (
+                chr(10).join(
+                    f"- {tool.name}: {tool.description}" for tool in available_tools
+                )
+                if available_tools
+                else "无"
+            )
+
+        system_prompt = f"""你是一个智能助手，可以使用提供的工具来完成任务。
+
+你最多有 {maxIter} 轮机会来完成任务。当前是第 {iteration + 1} 轮。
 
 当你准备好给出最终答案时，调用以下工具之一：
 {final_tools_desc}
@@ -169,9 +193,6 @@ async def small_agent(
 {tools_desc}
 """
 
-    messages: list[MessageParam] = [{"role": "user", "content": initial_prompt}]
-
-    for iteration in range(maxIter):
         response = await continue_conversation(
             system_prompt=system_prompt,
             messages=messages,
@@ -189,7 +210,9 @@ async def small_agent(
 
         for call in tool_calls:
             if call["name"] in final_names:
-                _log_conversation_history(messages, f"completed (final tool: {call['name']})")
+                _log_conversation_history(
+                    messages, f"completed (final tool: {call['name']})"
+                )
                 return (call["name"], call["input"])
 
         tool_results = []
@@ -200,6 +223,8 @@ async def small_agent(
             tool = tool_map.get(tool_name)
             if tool is None:
                 result = f"错误：工具 '{tool_name}' 不存在"
+            elif not tool.is_available():
+                result = f"错误：工具 '{tool_name}' 不可用"
             else:
                 try:
                     result = await tool.execute(tool_input)

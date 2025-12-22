@@ -143,7 +143,7 @@ class FrontendClient:
             )
 
         # 启动后端进程（不保存引用，让它完全独立）
-        subprocess.Popen(cmd, **kwargs)
+        subprocess.Popen(cmd, **kwargs)  # type: ignore
 
         # 等待后端启动（重试发现）
         for _ in range(10):  # 最多等待 5 秒
@@ -153,15 +153,17 @@ class FrontendClient:
 
         raise RuntimeError("Failed to start backend: timeout waiting for health check")
 
-    async def recall(self, interest: str, timeout: float = 120.0) -> str:
-        """调用 recall（阻塞等待结果）"""
+    async def recall(self, interest: str, deep: bool = False) -> str:
+        """调用 recall（阻塞等待结果）
+        Returns:
+            回忆报告
+        """
         session = await self._get_session()
 
         try:
             async with session.post(
                 f"{self.backend_url}/recall",
-                json={"interest": interest},
-                timeout=aiohttp.ClientTimeout(total=timeout),
+                json={"interest": interest, "deep": deep},
             ) as resp:
                 data = await resp.json()
 
@@ -169,10 +171,6 @@ class FrontendClient:
                     return data["result"]
                 else:
                     raise RuntimeError(data.get("error", "Unknown error"))
-
-        except asyncio.TimeoutError:
-            logger.warning(f"Recall timeout after {timeout}s")
-            return "查询超时，请稍后重试"
 
         except Exception as e:
             logger.error(f"Recall failed: {e}")

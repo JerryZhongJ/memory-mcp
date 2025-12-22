@@ -19,7 +19,7 @@ class ListMemoriesTool(Tool):
                     "keywords": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "用来查询的关键词列表（可选，为空则列出所有）",
+                        "description": "用来查询的关键词列表，每个关键词由小写字母和数字组成，且至少包含一个字母。如果不提供关键词，则列出所有记忆。",
                     }
                 },
                 "required": [],
@@ -226,3 +226,53 @@ class ReassignMemoryTool(Tool):
                 if e.suggestion:
                     error_msg += f"\n建议: {e.suggestion}"
                 return error_msg
+
+
+class LimitedListMemoriesTool(ListMemoriesTool):
+    """带次数限制的 list_memories 工具"""
+
+    def __init__(self, registry: MemoryRegistry, max_calls: int):
+        """
+        Args:
+            registry: MemoryRegistry 实例
+            max_calls: 最大调用次数（默认 2）
+        """
+        super().__init__(registry)
+        self.max_calls = max_calls
+        self.call_count = 0
+
+        self.description = f"列出与关键词匹配的记忆（最多可调用 {max_calls} 次），每个记忆用一组关键词作为唯一标识。"
+
+    async def execute(self, tool_input: dict) -> str:
+        """执行搜索并递增计数器"""
+        self.call_count += 1
+        return await super().execute(tool_input)
+
+    def is_available(self) -> bool:
+        """检查是否已达到调用次数上限"""
+        return self.call_count < self.max_calls
+
+
+class LimitedReadMemoryTool(ReadMemoryTool):
+    """带次数限制的 read_memory 工具"""
+
+    def __init__(self, registry: MemoryRegistry, max_reads: int):
+        """
+        Args:
+            registry: MemoryRegistry 实例
+            max_reads: 最大读取次数（默认 5）
+        """
+        super().__init__(registry)
+        self.max_reads = max_reads
+        self.read_count = 0
+
+        self.description = f"读取指定记忆的内容（最多可读取 {max_reads} 篇）"
+
+    async def execute(self, tool_input: dict) -> str:
+        """执行读取并递增计数器"""
+        self.read_count += 1
+        return await super().execute(tool_input)
+
+    def is_available(self) -> bool:
+        """检查是否已达到读取次数上限"""
+        return self.read_count < self.max_reads
