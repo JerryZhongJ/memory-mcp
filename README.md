@@ -1,73 +1,103 @@
+English | [简体中文](README.zh-CN.md)
+
 # Memory MCP
 
-为 Claude Code 提供项目记忆管理的 MCP 服务器。
+An MCP server that provides project memory management for Claude Code.
 
-## 快速开始
+## Quick Start
 
-### 前置要求
+### Prerequisites
 
 - Python >= 3.10
-- [uv](https://github.com/astral-sh/uv) 包管理器
-- Anthropic API Key（从 [Anthropic Console](https://console.anthropic.com/) 获取）
+- [uv](https://github.com/astral-sh/uv) package manager
+- Anthropic API Key (get it from [Anthropic Console](https://console.anthropic.com/))
 
-### 方式一：使用 CLI 命令添加（推荐）
+### Option 1: Install via CLI (Recommended)
 
-**从 GitHub 直接安装（无需下载）：**
+**Install directly from GitHub (no download required):**
 
 ```bash
-# 添加到当前项目（本地作用域）
+# Add to current project (local scope)
 claude mcp add memory \
   --env ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
   -- uvx --from git+https://github.com/JerryZhongJ/memory-mcp.git memory-mcp --project $(pwd)
 ```
 
-### 方式二：本地开发安装
+### Option 2: Local Development Installation
 
-如果你需要修改源码或参与开发：
+If you need to modify the source code or contribute to development:
 
 ```bash
-# 1. 克隆仓库
+# 1. Clone the repository
 git clone https://github.com/JerryZhongJ/memory-mcp.git
 cd memory-mcp
 
-# 2. 安装依赖
+# 2. Install dependencies
 uv sync
 
-# 3. 添加到 Claude Code
+# 3. Add to Claude Code
 claude mcp add memory \
   --env ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
   -- uv --directory /path/to/memory-mcp run memory-mcp --project $(pwd)
 ```
 
-### 验证安装
+### Verify Installation
 
-配置完成后，Claude Code 会自动加载服务器。你可以使用以下命令验证：
+After configuration, Claude Code will automatically load the server. You can verify with:
 
 ```bash
-# 查看所有已配置的 MCP 服务器
+# List all configured MCP servers
 claude mcp list
 
-# 在 Claude Code 中使用 /mcp 命令查看服务器状态
+# Use /mcp command in Claude Code to check server status
 ```
 
-### 管理服务器
+### Manage Server
 
 ```bash
-# 移除服务器
+# Remove server
 claude mcp remove memory
 
-# 查看服务器详情
+# View server details
 claude mcp get memory
 ```
 
-## 工作原理
+## How It Works
 
-- 记忆以 Markdown 文件形式存储在项目的 `.memories` 目录
-- 使用关键词进行智能匹配和检索
-- LLM 自动决定创建新记忆或更新现有记忆
-- 自动验证内容大小和相关性
-- 前后端分离架构，后端自动管理生命周期
+- Memories are stored as Markdown files in the project's `.memories` directory
+- Uses intelligent keyword matching and retrieval
+- LLM automatically decides whether to create new memories or update existing ones
+- Automatically validates content size and relevance
+- Frontend-backend separation architecture with automatic backend lifecycle management
 
-## 许可证
+## Configuring CLAUDE.md
+
+To help Claude better use this MCP service, it's recommended to create a `.claude/CLAUDE.md` file in your project with the following usage rules:
+
+```markdown
+# Project Memory Management Rules
+
+## ⚠️ Mandatory Rules (Must Be Strictly Followed)
+
+### 1. Query Memory Before Starting Tasks
+
+**Every time you receive a user question, the first step must be to use `recall_memory_tool` to query relevant information.**
+
+Do not rely on judgment to decide whether to query. Any question may be related to existing memories.
+
+### 2. Save New Information Immediately Upon Discovery
+
+**Whenever you obtain valuable new information through investigation, you must immediately use `memorize_memory_tool` to save it.**
+
+Save the information as soon as you discover it, don't wait until after answering the user's question.
+
+**Standard Workflow**:
+```
+User Question → Query Memory → Investigate Code/Docs → Discover New Info → Save Immediately → Answer User
+```
+
+**Important**: Skipping these steps leads to duplicate work, inconsistent answers, and knowledge loss.
+```
+## License
 
 MIT
