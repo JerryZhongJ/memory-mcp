@@ -74,7 +74,7 @@ claude mcp get memory
 
 To help Claude better use this MCP service, it's recommended to create a `.claude/CLAUDE.md` file in your project with the following usage rules:
 
-```markdown
+````markdown
 # Project Memory Management Rules
 
 ## ⚠️ Mandatory Rules (Must Be Strictly Followed)
@@ -97,7 +97,7 @@ User Question → Query Memory → Investigate Code/Docs → Discover New Info �
 ```
 
 **Important**: Skipping these steps leads to duplicate work, inconsistent answers, and knowledge loss.
-```
+````
 ## License
 
 MIT
