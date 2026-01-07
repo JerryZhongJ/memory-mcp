@@ -74,7 +74,7 @@ claude mcp get memory
 
 为了让 Claude 更好地使用这个 MCP 服务，建议在你的项目中创建 `.claude/CLAUDE.md` 文件，添加以下使用规则：
 
-```markdown
+````markdown
 # 项目记忆管理规则
 
 ## ⚠️ 强制规则（必须严格遵守）
@@ -97,7 +97,7 @@ claude mcp get memory
 ```
 
 **重要**：跳过这些步骤会导致重复劳动、答案不一致、知识丢失。
-```
+````
 ## 许可证
 
 MIT
