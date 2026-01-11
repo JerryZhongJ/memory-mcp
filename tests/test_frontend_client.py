@@ -147,3 +147,24 @@ async def test_frontend_start_backend(test_project_dir):
 
     # 清理
     await client.close()
+
+
+@pytest.mark.asyncio
+async def test_client_check_health(test_project_dir):
+    """测试FrontendClient的check_health方法"""
+    from memory_mcp.file_manager import get_cache_dir
+
+    test_dir = test_project_dir
+
+    client = FrontendClient(test_dir)
+    await client.start()
+
+    health_info = await client.check_health()
+
+    assert health_info["status"] == "healthy"
+    assert "active_tasks" in health_info
+    assert "log_path" in health_info
+    expected_log_path = str(get_cache_dir(test_dir) / "backend.log")
+    assert health_info["log_path"] == expected_log_path
+
+    await client.close()

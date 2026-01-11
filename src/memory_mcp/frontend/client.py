@@ -221,6 +221,30 @@ class FrontendClient:
             logger.error(f"Set log level failed: {e}")
             raise
 
+    async def check_health(self) -> dict:
+        """检查后端健康状态并返回信息
+
+        Returns:
+            包含状态、活跃任务数和日志路径的字典
+        """
+        session = await self._get_session()
+
+        try:
+            async with session.get(
+                f"{self.backend_url}/health",
+                timeout=aiohttp.ClientTimeout(total=2),
+            ) as resp:
+                data = await resp.json()
+
+                if resp.status == 200:
+                    return data
+                else:
+                    raise RuntimeError(data.get("error", "Health check failed"))
+
+        except Exception as e:
+            logger.error(f"Health check failed: {e}")
+            raise
+
     async def close(self):
         """关闭客户端"""
         # 停止心跳

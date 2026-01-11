@@ -67,6 +67,26 @@ async def set_backend_log_level_tool(level: str) -> str:
         return f"设置日志级别失败: {str(e)}"
 
 
+@mcp.tool()
+async def check_health_tool() -> str:
+    """检查后端服务健康状态
+
+    返回后端服务的状态信息，包括：
+    - 健康状态
+    - 活跃任务数
+    - 日志文件路径
+    """
+    try:
+        health_info = await _client.check_health()
+        return (
+            f"后端服务状态: {health_info['status']}\n"
+            f"活跃任务数: {health_info['active_tasks']}\n"
+            f"日志文件路径: {health_info['log_path']}"
+        )
+    except Exception as e:
+        return f"健康检查失败: {str(e)}"
+
+
 def main():
     """MCP 服务器入口函数"""
     parser = argparse.ArgumentParser(description="Memory MCP Server (Frontend)")

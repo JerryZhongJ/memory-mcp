@@ -85,3 +85,45 @@ async def test_no_shutdown_when_active(test_project_dir):
         await run_task
     except asyncio.CancelledError:
         pass
+
+
+@pytest.mark.asyncio
+async def test_health_returns_log_path(test_project_dir):
+    """测试health API返回log文件路径"""
+    import aiohttp
+
+    from memory_mcp.file_manager import get_cache_dir
+
+    test_dir = test_project_dir
+
+    server = BackendServer(
+        test_dir,
+        shutdown_idle=10.0,
+        shutdown_check_interval=1.0,
+    )
+
+    run_task = asyncio.create_task(server.run())
+
+    await asyncio.sleep(0.5)
+
+    lock_file = get_lock_file(test_dir)
+    assert lock_file.exists(), "后端应该已启动"
+
+    lock_content = lock_file.read_text().strip().split("\n")
+    port = int(lock_content[1])
+    backend_url = f"http://127.0.0.1:{port}"
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(f"{backend_url}/health") as resp:
+            assert resp.status == 200
+            data = await resp.json()
+            assert data["status"] == "healthy"
+            assert "log_path" in data
+            expected_log_path = str(get_cache_dir(test_dir) / "backend.log")
+            assert data["log_path"] == expected_log_path
+
+    run_task.cancel()
+    try:
+        await run_task
+    except asyncio.CancelledError:
+        pass

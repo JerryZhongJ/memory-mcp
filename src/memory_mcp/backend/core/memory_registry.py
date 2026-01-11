@@ -258,6 +258,18 @@ class MemoryRegistry:
         logger.info(f"[List] Query: {sorted(query_keywords)}, matched: {len(result)}")
         return result
 
+    def has_memory(self, keywords: Iterable[str]) -> bool:
+        """检查指定关键词组的记忆是否存在
+
+        Args:
+            keywords: 关键词列表
+
+        Returns:
+            如果记忆存在返回 True，否则返回 False
+        """
+        key = frozenset(keywords)
+        return key in self._memories
+
     async def create(
         self,
         keywords: Iterable[str],

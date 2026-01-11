@@ -8,6 +8,7 @@ from pathlib import Path
 
 from aiohttp import web
 
+from ..file_manager import get_cache_dir
 from .config import AUTO_SHUTDOWN_CHECK_INTERVAL_SECONDS, AUTO_SHUTDOWN_IDLE_SECONDS
 from .core.memory_registry import MemoryRegistry
 from .lock import BackendLock
@@ -86,10 +87,13 @@ class BackendServer:
 
     async def handle_health(self, request: web.Request) -> web.Response:
         """健康检查"""
+
+        log_path = get_cache_dir(self.project_root) / "backend.log"
         return web.json_response(
             {
                 "status": "healthy",
                 "active_tasks": self.active_tasks,
+                "log_path": str(log_path),
             }
         )
 
