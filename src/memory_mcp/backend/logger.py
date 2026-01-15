@@ -30,10 +30,10 @@ def setup_logger(project_root: Path):
     root_logger.setLevel(getattr(logging, level, logging.INFO))
 
     # 添加文件 handler（带日志轮转）
-    # 单个文件最大 10MB，保留 5 个备份文件，总计最多 50MB
+    # 单个文件最大 1MB，保留 5 个备份文件，总计最多 5MB
     handler = RotatingFileHandler(
         log_file,
-        maxBytes=10 * 1024 * 1024,  # 10MB
+        maxBytes=1 * 1024 * 1024,  # 1MB
         backupCount=5,
         encoding="utf-8",
     )
