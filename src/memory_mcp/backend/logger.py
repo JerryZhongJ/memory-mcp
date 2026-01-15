@@ -44,5 +44,8 @@ def setup_logger(project_root: Path):
     handler.setFormatter(formatter)
     root_logger.addHandler(handler)
 
+    # 禁用 aiohttp 访问日志，避免心跳等 HTTP 请求日志刷屏
+    logging.getLogger("aiohttp.access").setLevel(logging.WARNING)
+
 
 logger = logging.getLogger("memory-mcp")
